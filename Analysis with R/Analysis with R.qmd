@@ -1,0 +1,245 @@
+---
+title: "Analysis with R"
+author: Y3926947
+format: html
+editor: visual
+---
+
+### Import Tidyverse library.
+#### Turb off warnings
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+```
+
+### Load the data which is in CSV format and save to variable 'data'.
+
+```{r}
+data <- read_csv("data.raw.csv", show_col_types = FALSE)
+```
+
+# **Exploratory Analysis**
+
+## Step 1.
+
+### Observe total number of survey taken.
+
+```{r}
+data |>
+  group_by(ID) |>
+  count()
+```
+
+### Obtain the mean age.
+
+```{r}
+data |>
+    summarise(mean = mean(Age))
+```
+
+### Check the relationship between 'BMI' and 'Physical activeness' and visualize observation.
+
+#### Replace NA values with the mean of the 'Physical Activeness' and 'BMI' columns.
+
+```{r}
+phys_mean  <- data |>
+  summarise(mean = mean(PhysActiveDays))
+```
+
+```{r}
+bmi_mean  <- data |>
+  summarise(mean = mean(BMI))
+```
+
+```{r}
+data["PhysActiveDays"][is.na(data["PhysActiveDays"])] <- 2
+
+```
+
+### Observe total number of survey taken by each 'Sex (Male and Female)'.
+
+```{r}
+data["BMI"][is.na(data["BMI"])] <- 29
+```
+
+```{r}
+data |>
+  group_by(Sex) |>
+  count()
+```
+
+### Explore the mean of the 'Physical Active days' and use to create a condition.
+
+```{r}
+data |>
+  summarise(mean = mean(PhysActiveDays))
+```
+
+### Create a new column using condition to categorize 'Physical Activeness' into 'Barely active' and 'Active'.
+
+```{r}
+data$activeness <- with(data, ifelse(PhysActiveDays > 2.9, 'Active', 'Barely Active'))
+```
+
+### Plot 'Activeness' against 'BMI' and filter with 'Sex'.
+
+#### Visualize.
+
+```{r}
+#| fig-cap: "Physical Activeness against BMi, filtered with Gender"
+ggplot(data, aes(x = activeness, y = BMI, fill=Sex)) + stat_summary(fun=mean, geom = 'bar')
+```
+
+# Exploratory Analysis 2
+
+#### Observe the relationship between 'Weight' and 'BMI'.
+
+#### First evaluate mean of Weight.
+
+```{r}
+data |>
+  summarise(mean = mean(Weight))
+```
+
+#### Create a new column using condition to categorize 'Weight' into 'Over_weight', 'Average Weight'.
+
+```{r}
+data$over_weight <- with(data, ifelse(Weight > 83.4, 'Overweight', 'Average weight'))
+```
+
+#### Plot 'Over_weight', and 'BMI' and observe.
+
+```{r}
+#| fig-cap: "Weight against BMI"
+ggplot(data, aes(x = over_weight, y = BMI)) +  geom_boxplot()
+```
+
+# Exploratory Analysis 3
+
+### Observe the weight of smokers. Most especially if smoking at an early age increases the tendency to be an averagely weighed person.
+
+#### Fill NA values with value of the mean of column 'Smoke Age'.
+
+```{r}
+smokeage_mean  <- data |>
+  summarise(mean = mean(SmokeAge))
+```
+
+```{r}
+data["SmokeAge"][is.na(data["SmokeAge"])] <- 7
+```
+
+```{r}
+#| fig-cap: "Weight against Age"
+ggplot(data, aes(x = over_weight, y = SmokeAge)) +  geom_boxplot()
+```
+
+# Hypothesis
+
+#### To test if the 'Pulse pressure' increase with 'Age.
+
+## Using a Two-way Anova test for the group column ['Male and 'Female\] against 'Pulse Pressure'.
+
+### Run Two-way Anova.
+
+```{r}
+mod <- aov(Pulse ~ Sex, data = data)
+summary(mod)
+```
+
+### Print Model and observe correlation. Make conclusion.
+
+```{r}
+summary(mod)
+```
+
+### Visualize
+
+```{r}
+ggplot(data = data) +
+  aes(x = Sex, y = Pulse) +
+  geom_boxplot()
+```
+
+# Hypothesis 2
+
+### To check the tendency that older smokers are diabetic.
+
+## Run Chi-test.
+
+### Best used for categorical data having multiple decisions.
+
+```{r}
+mod2 <- chisq.test(data$SmokeNow, data$Diabetes, correct=FALSE)
+```
+
+### Print Model and observe correlation. Make conclusion.
+
+```{r}
+summary(mod2)  
+```
+
+### Visualize and observe old people still smoke or quit.
+
+```{r}
+#| fig-cap: "Current Smokers Against Diabetes record"
+ggplot(data) + geom_point(mapping =aes(x= SmokeNow, y=SmokeAge))
+```
+
+## Hypothesis 3
+
+### Further drill the 'women' data set. To observe if elderly women are more overweight and at what age they tend to weigh most.
+
+### Filter to only display women older than 45, these set of Women would be considered to be elderly,
+
+```{r}
+women <- filter(data, Sex == 'female')
+```
+
+```{r}
+old_women <- filter(women, Age > 45)
+```
+
+### Run Linear Model to check correlation.
+
+```{r}
+mod3 <- lm(data = old_women,
+          Age ~ Weight)
+```
+
+### Print Model and observe correlation. Make conclusion.
+
+```{r}
+summary(mod3)   
+```
+
+### Visualize
+
+```{r}
+#| fig-cap: "Age of Eldery Women against Weight"
+ggplot(old_women,aes(x=Age,fill=Weight))+
+  geom_histogram(position="dodge",binwidth=5)+theme_bw()
+```
+
+## End of Analysis
+
+### Present results and Observation in PDF Doc.
+
+#### Save Tables as a CSV file
+
+```{r}
+library( broom )
+write.csv( tidy( mod ) , "coefs.csv" )
+write.csv( glance( mod ) , "an.csv" )
+
+write.csv( tidy( mod2 ) , "coefs2.csv" )
+write.csv( glance( mod2 ) , "an.csv" )
+
+write.csv( tidy( mod3 ) , "coefs3.csv" )
+write.csv( glance( mod3 ) , "an.csv" )
+```
